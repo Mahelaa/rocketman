@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Electron and installer output
+release/
+dist/
+out/
+*.blockmap
+*.log
+
+# Local runtime state and generated launchers
+data/state.json
+data/generated/
+
+# Browser/test artifacts
+data/*.png
+playwright-report/
+test-results/
+coverage/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Windows and editor files
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

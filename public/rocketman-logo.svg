@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Rocketman</title>
+  <desc id="desc">A geometric R monogram rising upward.</desc>
+  <rect width="96" height="96" rx="18" fill="#101726"/>
+  <path fill="#fff" d="M22 75V20h28c17 0 27 9 27 23 0 11-6 19-17 22l9 10H52L42 64h-5v11H22Zm15-25h12c8 0 12-2 12-7 0-6-4-8-12-8H37v15Z"/>
+  <path fill="#16b8c4" d="M52 75 76 43h-15L42 68l6 7h4Z"/>
+  <path fill="#ff5b45" d="M73 20h6v14h-6z"/>
+</svg>

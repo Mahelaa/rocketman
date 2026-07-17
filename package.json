@@ -1,0 +1,61 @@
+{
+  "name": "rocketman",
+  "version": "0.1.0",
+  "description": "Windows desktop project control and local server launcher.",
+  "author": "Mahela Abeysekara",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "scripts\\electron-launch.cmd",
+    "desktop:icon": "node scripts/generate-desktop-icon.mjs",
+    "desktop:build": "npm run desktop:icon && electron-builder --win nsis",
+    "verify:visual": "node scripts/verify-3d-ascii.mjs",
+    "verify:management": "node scripts/verify-project-management.mjs",
+    "verify:discovery": "node scripts/verify-discovery.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
+    "playwright-core": "^1.61.1"
+  },
+  "build": {
+    "appId": "com.rocketman.projectcontrol",
+    "productName": "Rocketman",
+    "asar": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "desktop/**/*",
+      "public/**/*",
+      "scripts/conda-activate.cmd",
+      "build/icon.png",
+      "server.js",
+      "projects.json",
+      "package.json",
+      "node_modules/three/**/*"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Rocketman",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

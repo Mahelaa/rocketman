@@ -1,0 +1,49 @@
+[
+  {
+    "id": "vision",
+    "name": "Vision OCR",
+    "description": "OCR and text extraction pipeline.",
+    "cwd": "C:\\Users\\Mahela.Abeysekara\\Documents\\Projects\\vision\\backend",
+    "condaEnv": "vision",
+    "preferredPort": 8000,
+    "command": "python -m uvicorn main:app --host localhost --port {port}",
+    "urlTemplate": "http://localhost:{port}",
+    "healthTemplate": "http://localhost:{port}/health",
+    "tags": ["FastAPI", "OCR", "Vision"]
+  },
+  {
+    "id": "overwriting",
+    "name": "Overwriting Detection",
+    "description": "Prescription overwriting and fraud evidence review.",
+    "cwd": "C:\\Users\\Mahela.Abeysekara\\Documents\\Projects\\Overwriting",
+    "condaEnv": "overwriting",
+    "preferredPort": 8000,
+    "command": "python -m uvicorn backend.main:app --host localhost --port {port}",
+    "urlTemplate": "http://localhost:{port}",
+    "healthTemplate": "http://localhost:{port}/api/health",
+    "tags": ["FastAPI", "Fraud", "Overwriting"]
+  },
+  {
+    "id": "fraud-test",
+    "name": "Fraud Test App",
+    "description": "Batch fraud testing dashboard.",
+    "cwd": "C:\\Users\\Mahela.Abeysekara\\Documents\\Projects\\FraudTestApp",
+    "condaEnv": "fraud-test-app",
+    "preferredPort": 8000,
+    "command": "python -m uvicorn app:app --host localhost --port {port}",
+    "urlTemplate": "http://localhost:{port}",
+    "healthTemplate": "http://localhost:{port}/api/system/health",
+    "tags": ["FastAPI", "Batch", "Fraud"]
+  },
+  {
+    "id": "hr-evaluation",
+    "name": "SL HR Evaluation",
+    "description": "Next.js HR evaluation app.",
+    "cwd": "C:\\Users\\Mahela.Abeysekara\\Documents\\Projects\\SL_HREvaluation",
+    "preferredPort": 3000,
+    "command": "npm run dev -- --hostname localhost --port {port}",
+    "urlTemplate": "http://localhost:{port}",
+    "healthTemplate": "http://localhost:{port}",
+    "tags": ["Next.js", "HR"]
+  }
+]

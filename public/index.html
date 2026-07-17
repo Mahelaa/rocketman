@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>rocketman</title>
+    <link rel="icon" href="/favicon.svg?v=20260717-brand" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-logo" src="/rocketman-logo.svg?v=20260717-brand" alt="">
+          <div class="brand-copy">
+            <h1 class="brand-name">rocketman</h1>
+            <p class="brand-tagline">Project control</p>
+          </div>
+        </div>
+        <div class="summary">
+          <span id="running-count">0 running</span>
+          <button id="refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <nav class="portal-tabs" role="tablist" aria-label="Rocketman views">
+        <button class="portal-tab active" id="projects-tab" type="button" role="tab" aria-selected="true" aria-controls="projects-view" data-tab="projects">Projects</button>
+        <button class="portal-tab" id="network-tab" type="button" role="tab" aria-selected="false" aria-controls="network-view" data-tab="network">Network</button>
+      </nav>
+
+      <section class="projects-panel tab-panel" id="projects-view" role="tabpanel" aria-labelledby="projects-tab">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Launch controls</p>
+            <h2>Projects</h2>
+          </div>
+          <div class="section-actions">
+            <span class="hint">Start, stop, and open your configured apps</span>
+            <button class="primary" id="add-project" type="button">Add project</button>
+          </div>
+        </div>
+        <div id="projects" class="project-grid" aria-live="polite">
+          <div class="empty">Loading projects...</div>
+        </div>
+      </section>
+
+      <section class="servers-panel tab-panel" id="network-view" role="tabpanel" aria-labelledby="network-tab" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Network scan</p>
+            <h2>Live Servers</h2>
+          </div>
+        </div>
+        <div id="servers" class="server-table" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <dialog id="project-dialog" class="project-dialog">
+      <form id="project-form">
+        <header class="dialog-head">
+          <div>
+            <p class="eyebrow">Project configuration</p>
+            <h2>Add project</h2>
+          </div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Close">Close</button>
+        </header>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>Project name</span>
+            <input name="name" maxlength="80" required autofocus>
+          </label>
+          <label class="field">
+            <span>Description</span>
+            <input name="description" maxlength="240">
+          </label>
+          <label class="field full">
+            <span>Working directory</span>
+            <input name="cwd" placeholder="C:\Users\...\Projects\my-app" spellcheck="false" required>
+          </label>
+          <label class="field full">
+            <span>Start command</span>
+            <input name="command" placeholder="python -m uvicorn app:app --port {port}" spellcheck="false" required>
+          </label>
+          <label class="field">
+            <span>Conda environment</span>
+            <input name="condaEnv" placeholder="Optional" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Preferred port</span>
+            <input name="preferredPort" type="number" min="1025" max="65535" value="3000" required>
+          </label>
+          <label class="field">
+            <span>App URL</span>
+            <input name="urlTemplate" value="http://localhost:{port}" spellcheck="false" required>
+          </label>
+          <label class="field">
+            <span>Health URL</span>
+            <input name="healthTemplate" value="http://localhost:{port}" spellcheck="false" required>
+          </label>
+          <label class="field full">
+            <span>Tags</span>
+            <input name="tags" placeholder="FastAPI, OCR, Internal" maxlength="200">
+          </label>
+        </div>
+
+        <p class="form-error" id="project-form-error" role="alert" hidden></p>
+        <footer class="dialog-actions">
+          <button type="button" data-close-dialog>Cancel</button>
+          <button class="primary" id="save-project" type="submit">Add project</button>
+        </footer>
+      </form>
+    </dialog>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/vendor/three/build/three.module.js"
+        }
+      }
+    </script>
+    <script type="module" src="/app.js?v=20260717-project-management"></script>
+  </body>
+</html>
