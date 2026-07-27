@@ -12,6 +12,7 @@
     "desktop:icon": "node scripts/generate-desktop-icon.mjs",
     "desktop:build": "npm run desktop:icon && electron-builder --win nsis",
     "verify:visual": "node scripts/verify-3d-ascii.mjs",
+    "verify:lifecycle": "node scripts/verify-lifecycle-transition.mjs",
     "verify:management": "node scripts/verify-project-management.mjs",
     "verify:discovery": "node scripts/verify-discovery.mjs"
   },

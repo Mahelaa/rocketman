@@ -79,7 +79,7 @@ try {
       viewport.dataset.asciiState = states[index];
     });
   });
-  await page.waitForTimeout(350);
+  await page.waitForTimeout(650);
   const motionBefore = await page.locator(".ascii-viewport").evaluateAll((viewports) => viewports.slice(0, 4).map((viewport) => ({
     rocket: viewport.querySelector(".ascii-rocket-layer")?.textContent || "",
     accent: viewport.querySelector(".ascii-accent-layer")?.textContent || "",

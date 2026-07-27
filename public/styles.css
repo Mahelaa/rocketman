@@ -310,6 +310,8 @@ h1 {
 
 .ascii-environment-layer { color: #2d7f72; opacity: 0.7; }
 .ascii-stars-layer { color: #3c8f68; opacity: 0.86; }
+.ascii-smoke-layer { color: #7aa49a; opacity: 0.52; text-shadow: 0 0 6px rgba(122, 164, 154, 0.18); }
+.ascii-facility-layer { color: #4dbf8a; opacity: 0.82; }
 .ascii-pad-layer { color: #39c877; }
 .ascii-rocket-layer { color: #52ed85; text-shadow: 0 0 7px rgba(82, 237, 133, 0.28); }
 .ascii-accent-layer { color: #a0ffb4; text-shadow: 0 0 5px rgba(160, 255, 180, 0.28); }

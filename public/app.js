@@ -21,6 +21,8 @@ const transitions = new Map();
 const bootStorageKey = "rocketman.bootId";
 const asciiScenes = new Map();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const launchDuration = 1800;
+const landingDuration = 2800;
 let lastProjectsMarkup = "";
 let asciiAnimationFrame = null;
 let lastAsciiFrame = 0;
@@ -56,6 +58,7 @@ function projectCard(project) {
   const transitionRecord = transitions.get(project.id);
   const transition = transitionRecord?.state;
   const statusClass = transition || (status === "Running" ? "running" : status === "Starting" || status === "Working" ? "starting" : "stopped");
+  const visualState = transition || (statusClass === "starting" ? "preflight" : statusClass);
   const started = project.startedAt ? new Date(project.startedAt).toLocaleString() : project.detected ? "Detected externally" : "Not running";
   const projectTags = project.detected ? ["Auto-detected", ...(project.tags || [])] : (project.tags || []);
   const tags = projectTags.map((tag) => `<span class="tag">${esc(tag)}</span>`).join("");
@@ -72,7 +75,7 @@ function projectCard(project) {
         <span class="status"><span class="dot"></span>${esc(status)}</span>
       </div>
       <div class="flight-status" aria-hidden="true">
-        <div class="ascii-viewport" data-ascii-id="${esc(project.id)}" data-ascii-state="${esc(statusClass)}" data-ascii-started="${transitionRecord?.startedAt || ""}"></div>
+        <div class="ascii-viewport" data-ascii-id="${esc(project.id)}" data-ascii-state="${esc(visualState)}" data-ascii-started="${transitionRecord?.startedAt || ""}"></div>
         <span class="flight-label">${esc(status)}</span>
         <span class="ascii-telemetry">${transition === "launching" ? "ASCENT // ORBIT INSERTION" : transition === "landing" ? "RE-ENTRY // LANDING" : project.running ? "DEEP SPACE // CRUISE" : "PAD // PRE-FLIGHT"}</span>
       </div>
@@ -190,6 +193,22 @@ function discSurface(y, radius, radialSteps = 12, angularSteps = 48, normalY = 1
   return points;
 }
 
+function boxSurface(xMin, xMax, yMin, yMax, zMin, zMax, steps = 8) {
+  const points = [];
+  const addFace = (normal, positionFor) => {
+    for (let row = 0; row <= steps; row += 1) {
+      for (let column = 0; column <= steps; column += 1) {
+        points.push(surfacePoint(positionFor(row / steps, column / steps), normal));
+      }
+    }
+  };
+  addFace(vector(1, 0, 0), (u, v) => vector(xMax, yMin + (yMax - yMin) * u, zMin + (zMax - zMin) * v));
+  addFace(vector(-1, 0, 0), (u, v) => vector(xMin, yMin + (yMax - yMin) * u, zMin + (zMax - zMin) * v));
+  addFace(vector(0, 1, 0), (u, v) => vector(xMin + (xMax - xMin) * u, yMax, zMin + (zMax - zMin) * v));
+  addFace(vector(0, 0, 1), (u, v) => vector(xMin + (xMax - xMin) * u, yMin + (yMax - yMin) * v, zMax));
+  return points;
+}
+
 function finSurface(side) {
   const points = [];
   for (let row = 0; row <= 14; row += 1) {
@@ -269,6 +288,32 @@ const padModel = [
   ...cylinderSurface(-1.76, -1.5, 1.45, 5, 56),
 ];
 
+const facilityModel = [
+  // Control tower and its glazed observation deck.
+  ...boxSurface(-2.12, -1.66, -1.52, 0.45, -0.25, 0.25, 10),
+  ...boxSurface(-2.25, -1.52, 0.42, 0.7, -0.37, 0.37, 8),
+  ...boxSurface(-1.92, -1.85, 0.7, 1.2, -0.06, 0.06, 4),
+  // Service arm reaches toward the parked vehicle, with a small counterweight building opposite it.
+  ...boxSurface(-1.66, -0.55, 0.22, 0.35, -0.14, 0.14, 8),
+  ...boxSurface(1.45, 2.1, -1.52, -0.82, -0.45, 0.22, 8),
+  ...boxSurface(1.3, 2.24, -1.58, -1.46, -0.56, 0.35, 8),
+];
+
+function drawPadSmoke(grid, context, seconds) {
+  const baseColumn = Math.round(context.columns / 2);
+  const baseRow = context.rows - 4;
+  for (let index = 0; index < 22; index += 1) {
+    const phase = (seconds * (0.045 + (index % 5) * 0.008) + context.phase + index * 0.19) % 1;
+    const side = index % 2 === 0 ? -1 : 1;
+    const spread = 2 + (index % 6) * 1.25 + phase * 4.4;
+    const column = Math.round(baseColumn + side * spread + Math.sin(seconds * 0.55 + index) * 1.2);
+    const row = Math.round(baseRow - phase * (2.1 + (index % 3) * 0.55));
+    const character = phase < 0.28 ? "." : phase < 0.64 ? ":" : "~";
+    writeText(grid, column, row, character);
+    if (index % 3 === 0 && phase > 0.32) writeText(grid, column + side, row, character);
+  }
+}
+
 function emptyGrid(columns, rows) {
   return Array.from({ length: rows }, () => Array(columns).fill(" "));
 }
@@ -308,8 +353,9 @@ function drawEarthHorizon(grid, horizonRow) {
 }
 
 function drawStarField(context, grid, seconds, speedMultiplier = 1, direction = 1) {
+  context.starTravel += context.frameSeconds * speedMultiplier * direction;
   for (const star of context.stars) {
-    const travel = seconds * star.speed * speedMultiplier * direction;
+    const travel = context.starTravel * star.speed;
     const rawRow = star.y + travel;
     const row = ((Math.floor(rawRow) % context.rows) + context.rows) % context.rows;
     const column = Math.max(0, Math.min(context.columns - 1, Math.round(star.x / 64 * context.columns)));
@@ -373,7 +419,7 @@ function drawPointCloud(grid, depthBuffer, points, matrix, context, characterRam
   }
 }
 
-function buildRocketScene(mount) {
+function buildRocketScene(mount, snapshot = null) {
   const width = Math.max(280, Math.round(mount.clientWidth || 320));
   const camera = new THREE.PerspectiveCamera(37, width / 188, 0.1, 100);
   camera.position.set(3.6, 1.1, 7.6);
@@ -381,7 +427,7 @@ function buildRocketScene(mount) {
   camera.updateMatrixWorld();
 
   const layers = {};
-  for (const name of ["environment", "stars", "pad", "rocket", "accent", "flame"]) {
+  for (const name of ["environment", "stars", "smoke", "facility", "pad", "rocket", "accent", "flame"]) {
     const layer = document.createElement("pre");
     layer.className = `ascii-layer ascii-${name}-layer`;
     mount.appendChild(layer);
@@ -415,8 +461,13 @@ function buildRocketScene(mount) {
     columns: Math.max(56, Math.min(64, Math.floor(width / 5.05))),
     rows: 22,
     phase: (seed % 17) / 17 * Math.PI * 2,
-    state: mount.dataset.asciiState,
+    state: snapshot?.state || mount.dataset.asciiState,
     stateStarted: Number(mount.dataset.asciiStarted) || performance.now(),
+    starTravel: snapshot?.starTravel || 0,
+    pose: snapshot?.pose || null,
+    handoffPose: null,
+    frameSeconds: 0,
+    lastRenderedAt: performance.now(),
   };
 
   const resizeObserver = new ResizeObserver(([entry]) => {
@@ -433,6 +484,11 @@ function buildRocketScene(mount) {
 function renderAsciiScene(context, now) {
   const nextState = context.mount.dataset.asciiState;
   if (context.state !== nextState) {
+    const needsPoseBlend = (
+      (context.state === "launching" && nextState === "running")
+      || (context.state === "running" && nextState === "landing")
+    );
+    context.handoffPose = needsPoseBlend ? context.pose : null;
     context.state = nextState;
     context.stateStarted = Number(context.mount.dataset.asciiStarted) || now;
     if (nextState !== "running") context.easterEgg = null;
@@ -441,6 +497,8 @@ function renderAsciiScene(context, now) {
   const grids = {
     environment: emptyGrid(context.columns, context.rows),
     stars: emptyGrid(context.columns, context.rows),
+    smoke: emptyGrid(context.columns, context.rows),
+    facility: emptyGrid(context.columns, context.rows),
     pad: emptyGrid(context.columns, context.rows),
     rocket: emptyGrid(context.columns, context.rows),
     accent: emptyGrid(context.columns, context.rows),
@@ -448,22 +506,27 @@ function renderAsciiScene(context, now) {
   };
   const rocketDepth = emptyDepthBuffer(context.columns, context.rows);
   const padDepth = emptyDepthBuffer(context.columns, context.rows);
+  const facilityDepth = emptyDepthBuffer(context.columns, context.rows);
   const flameDepth = emptyDepthBuffer(context.columns, context.rows);
   const seconds = now / 1000;
   const moving = !reducedMotion.matches;
   const elapsed = now - context.stateStarted;
+  context.frameSeconds = moving ? Math.min(0.12, Math.max(0, (now - context.lastRenderedAt) / 1000)) : 0;
+  context.lastRenderedAt = now;
   const position = new THREE.Vector3(0, 0, 0);
   const rotation = new THREE.Euler(0, 0.52, 0);
   const padRotation = 0.52;
   let flameScale = 0;
   let showPad = true;
+  let showFacility = true;
+  let showPadSmoke = true;
   let showStars = false;
   let showFlame = false;
   let starSpeed = 0;
   let starDirection = 1;
 
-  if (context.state === "launching" || context.state === "starting") {
-    const progress = reducedMotion.matches ? 1 : clamp01(elapsed / 3600);
+  if (context.state === "launching") {
+    const progress = reducedMotion.matches ? 1 : clamp01(elapsed / launchDuration);
     const ignition = smoothStep(progress / 0.17);
     const lift = smoothStep((progress - 0.14) / 0.44);
     const cameraTrack = smoothStep((progress - 0.55) / 0.3);
@@ -473,12 +536,16 @@ function renderAsciiScene(context, now) {
     rotation.z = moving ? Math.sin(seconds * 2.2) * 0.018 * lift : 0;
     flameScale = 0.35 + ignition * 1.1 + (moving ? Math.sin(seconds * 19) * 0.12 : 0);
     showPad = progress < 0.68;
+    showFacility = progress < 0.5;
+    showPadSmoke = progress < 0.46;
     showStars = progress > 0.46;
     showFlame = true;
     starSpeed = THREE.MathUtils.lerp(0.6, 4.4, smoothStep((progress - 0.46) / 0.4));
     if (progress > 0.25 && progress < 0.88) drawEarthHorizon(grids.environment, 13 + progress * 13);
   } else if (context.state === "running") {
     showPad = false;
+    showFacility = false;
+    showPadSmoke = false;
     showStars = true;
     showFlame = true;
     position.x = moving ? Math.sin(seconds * 0.72 + context.phase) * 0.055 : 0;
@@ -489,7 +556,7 @@ function renderAsciiScene(context, now) {
     starSpeed = 3.4;
     if (moving) drawRareEasterEgg(context, grids.stars, now);
   } else if (context.state === "landing") {
-    const progress = reducedMotion.matches ? 1 : clamp01(elapsed / 3200);
+    const progress = reducedMotion.matches ? 1 : clamp01(elapsed / landingDuration);
     const reentry = smoothStep((progress - 0.12) / 0.34);
     const descent = smoothStep((progress - 0.56) / 0.4);
     const trackedY = THREE.MathUtils.lerp(0.18, 0.94, reentry);
@@ -498,6 +565,8 @@ function renderAsciiScene(context, now) {
     rotation.z = moving ? Math.sin(seconds * 1.35) * 0.045 * (1 - descent) : 0;
     flameScale = Math.max(0.28, 1.04 - descent * 0.7) + (moving ? Math.sin(seconds * 15) * 0.09 : 0);
     showPad = progress > 0.5;
+    showFacility = progress > 0.5;
+    showPadSmoke = progress > 0.86;
     showStars = progress < 0.64;
     showFlame = progress < 0.94;
     starSpeed = THREE.MathUtils.lerp(3.2, 0.5, reentry);
@@ -507,6 +576,17 @@ function renderAsciiScene(context, now) {
 
   if (showStars) {
     drawStarField(context, grids.stars, moving ? seconds : 0, starSpeed, starDirection);
+  }
+  if (showPadSmoke) drawPadSmoke(grids.smoke, context, moving ? seconds : 0);
+
+  if (context.handoffPose) {
+    const blend = reducedMotion.matches ? 1 : smoothStep(elapsed / 520);
+    position.lerpVectors(vector(...context.handoffPose.position), position, blend);
+    rotation.x = THREE.MathUtils.lerp(context.handoffPose.rotation[0], rotation.x, blend);
+    rotation.y = THREE.MathUtils.lerp(context.handoffPose.rotation[1], rotation.y, blend);
+    rotation.z = THREE.MathUtils.lerp(context.handoffPose.rotation[2], rotation.z, blend);
+    flameScale = THREE.MathUtils.lerp(context.handoffPose.flameScale, flameScale, blend);
+    if (blend >= 1) context.handoffPose = null;
   }
 
   const quaternion = new THREE.Quaternion().setFromEuler(rotation);
@@ -519,7 +599,14 @@ function renderAsciiScene(context, now) {
   drawPointCloud(grids.rocket, rocketDepth, rocketModel.body, rocketMatrix, context, ".:-=+*#%@");
   drawPointCloud(grids.accent, rocketDepth, rocketModel.accent, rocketMatrix, context, "+*#%@");
   if (showFlame) drawPointCloud(grids.flame, flameDepth, rocketModel.flame, flameMatrix, context, ".~^*#@");
+  if (showFacility) drawPointCloud(grids.facility, facilityDepth, facilityModel, padMatrix, context, ".:~=+*#");
   if (showPad) drawPointCloud(grids.pad, padDepth, padModel, padMatrix, context, ".:~=+*#");
+
+  context.pose = {
+    position: position.toArray(),
+    rotation: [rotation.x, rotation.y, rotation.z],
+    flameScale,
+  };
 
   for (const [name, grid] of Object.entries(grids)) context.layers[name].textContent = writeGrid(grid);
 }
@@ -538,10 +625,12 @@ function disposeAsciiScenes() {
   asciiScenes.clear();
 }
 
-function initializeAsciiScenes() {
+function initializeAsciiScenes(snapshots = new Map()) {
   for (const mount of projectsEl.querySelectorAll(".ascii-viewport")) {
     try {
-      asciiScenes.set(mount.dataset.asciiId, buildRocketScene(mount));
+      const context = buildRocketScene(mount, snapshots.get(mount.dataset.asciiId));
+      asciiScenes.set(mount.dataset.asciiId, context);
+      renderAsciiScene(context, performance.now());
     } catch (error) {
       mount.innerHTML = `<span class="ascii-fallback">3D ASCII unavailable</span>`;
       console.error(error);
@@ -561,10 +650,15 @@ async function loadProjects() {
     runningCountEl.textContent = `${running} running`;
     const markup = projects.length ? projects.map(projectCard).join("") : `<div class="empty">No projects configured.</div>`;
     if (markup !== lastProjectsMarkup) {
+      const snapshots = new Map([...asciiScenes].map(([id, context]) => [id, {
+        state: context.state,
+        starTravel: context.starTravel,
+        pose: context.pose,
+      }]));
       disposeAsciiScenes();
       projectsEl.innerHTML = markup;
       lastProjectsMarkup = markup;
-      initializeAsciiScenes();
+      initializeAsciiScenes(snapshots);
     }
   } catch (error) {
     disposeAsciiScenes();
@@ -698,28 +792,52 @@ async function submitProject(event) {
   }
 }
 
+async function waitForProjectState(id, expectedRunning, timeout = 60000) {
+  const deadline = performance.now() + timeout;
+  while (performance.now() < deadline) {
+    const response = await fetch("/api/projects", { cache: "no-store" });
+    if (!response.ok) throw new Error(`Unable to confirm project state (${response.status}).`);
+    const projects = await response.json();
+    const project = projects.find((candidate) => candidate.id === id);
+    const listenerReady = project?.listening || project?.healthy;
+    if (expectedRunning ? listenerReady : !project?.running) return project;
+    await wait(350);
+  }
+  throw new Error(expectedRunning
+    ? "The launcher started, but the app did not begin listening before the timeout."
+    : "The server did not stop before the timeout.");
+}
+
+async function finishCinematic(id, startedAt, duration) {
+  const remaining = duration - (performance.now() - startedAt);
+  if (remaining > 0) await wait(remaining);
+  transitions.delete(id);
+}
+
 async function postAction(action, id) {
   const transition = action === "start" ? "launching" : action === "stop" ? "landing" : null;
-  if (transition) transitions.set(id, { state: transition, startedAt: performance.now() });
+  const startedAt = performance.now();
+  if (transition) transitions.set(id, { state: transition, startedAt });
   busy.add(id);
   await loadProjects();
   try {
-    const request = fetch(`/api/${action}`, {
+    const response = await fetch(`/api/${action}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    const transitionDuration = action === "start" ? 3600 : action === "stop" ? 3200 : 0;
-    const [response] = await Promise.all([request, transition ? wait(transitionDuration) : Promise.resolve()]);
     const payload = await response.json();
     if (!response.ok || payload.error) {
       throw new Error(payload.error || `Request failed with ${response.status}`);
     }
+    if (action === "start") await waitForProjectState(id, true);
+    if (action === "stop") await waitForProjectState(id, false, 6000);
+    if (transition) await finishCinematic(id, startedAt, action === "start" ? launchDuration : landingDuration);
   } catch (error) {
     alert(error.message);
   } finally {
     busy.delete(id);
-    transitions.delete(id);
+    if (transitions.has(id)) transitions.delete(id);
     await loadProjects();
   }
 }

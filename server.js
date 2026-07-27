@@ -334,6 +334,7 @@ async function projectStatus(project, state, listeners = scanListeners(), option
     launcherPid: running && launcherRunning ? launcherPid : null,
     port: activeProject.selectedPort,
     running,
+    listening: Boolean(portListener),
     healthy,
     startedAt: running ? record.startedAt : null,
     detected: running && Boolean(record.detected),
